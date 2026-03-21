@@ -1,5 +1,6 @@
 import { Command, Flags } from '@oclif/core';
 import { getStatus } from '../lib/status.js';
+import { detectFeature } from '../lib/feature-detect.js';
 
 export default class Status extends Command {
   static override description =
@@ -12,8 +13,7 @@ export default class Status extends Command {
 
   static override flags = {
     feature: Flags.string({
-      description: 'Feature branch name',
-      required: true,
+      description: 'Feature branch name (auto-detected from current branch if omitted)',
     }),
     json: Flags.boolean({
       description: 'Output as JSON',
@@ -29,9 +29,14 @@ export default class Status extends Command {
     const { flags } = await this.parse(Status);
 
     try {
+      const featureName = await detectFeature({
+        workspaceDir: flags.dir,
+        explicit: flags.feature,
+      });
+
       const status = await getStatus({
         workspaceDir: flags.dir,
-        featureName: flags.feature,
+        featureName,
       });
 
       if (flags.json) {
