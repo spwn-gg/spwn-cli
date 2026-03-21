@@ -1,13 +1,15 @@
 import { Command, Args, Flags } from '@oclif/core';
-import { registerBranch } from '../lib/branch.js';
+import { registerBranch, deleteFeature } from '../lib/branch.js';
 import { configExists, readConfig } from '../lib/workspace.js';
 
 export default class Branch extends Command {
   static override description =
-    'Register a new feature branch, or list features if no name given';
+    'Register or delete a feature branch, or list features if no name given';
 
   static override examples = [
     '<%= config.bin %> branch my-feature',
+    '<%= config.bin %> branch --delete my-feature',
+    '<%= config.bin %> branch --delete my-feature --prune',
     '<%= config.bin %> branch',
   ];
 
@@ -19,6 +21,15 @@ export default class Branch extends Command {
   };
 
   static override flags = {
+    delete: Flags.boolean({
+      char: 'd',
+      description: 'Delete a registered feature',
+      default: false,
+    }),
+    prune: Flags.boolean({
+      description: 'Also delete git branches in materialized repos (use with --delete)',
+      default: false,
+    }),
     dir: Flags.string({
       description: 'Workspace root directory',
       default: '.',
@@ -49,9 +60,39 @@ export default class Branch extends Command {
       }
 
       this.log('\nTo register a new feature: spwn branch <name>');
+      this.log('To delete a feature: spwn branch --delete <name>');
       return;
     }
 
+    // Delete mode
+    if (flags.delete) {
+      try {
+        const result = await deleteFeature({
+          workspaceDir,
+          featureName: args.feature,
+          deleteBranches: flags.prune,
+        });
+
+        this.log(`Feature "${result.featureName}" deleted.`);
+
+        if (result.branchesDeleted.length > 0) {
+          this.log(`Branches deleted in: ${result.branchesDeleted.join(', ')}`);
+        }
+
+        if (result.branchesSkipped.length > 0) {
+          this.warn(`Could not delete branch in: ${result.branchesSkipped.join(', ')} (currently checked out)`);
+        }
+      } catch (error) {
+        if (error instanceof Error) {
+          this.error(error.message);
+        }
+        throw error;
+      }
+
+      return;
+    }
+
+    // Register mode
     try {
       const feature = await registerBranch({ workspaceDir, featureName: args.feature });
       this.log(

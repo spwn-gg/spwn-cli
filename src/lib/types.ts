@@ -97,6 +97,13 @@ export interface SwitchResult {
   skipped: Array<{ repoName: string; reason: string }>;
 }
 
+export interface DeleteFeatureResult {
+  deleted: boolean;
+  featureName: string;
+  branchesDeleted: string[];  // repos where git branch was deleted
+  branchesSkipped: string[];  // repos where branch couldn't be deleted (e.g. checked out)
+}
+
 export interface GitInfo {
   isRepo: boolean;
   remoteUrl: string | null;

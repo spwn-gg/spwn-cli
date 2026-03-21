@@ -1,6 +1,6 @@
 // Public API exports
 export { init, readConfig, writeConfig, configExists, validateIntegrity } from './workspace.js';
-export { registerBranch, checkout, switchFeature } from './branch.js';
+export { registerBranch, checkout, switchFeature, deleteFeature } from './branch.js';
 export { createPRs } from './pr.js';
 export { getStatus } from './status.js';
 export { merge } from './merge.js';
@@ -28,4 +28,5 @@ export type {
   GitInfo,
   PRStatus,
   SwitchResult,
+  DeleteFeatureResult,
 } from './types.js';

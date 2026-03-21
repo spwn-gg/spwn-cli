@@ -1,6 +1,7 @@
 import { Command, Flags } from '@oclif/core';
 import { merge } from '../lib/merge.js';
 import { detectFeature } from '../lib/feature-detect.js';
+import { deleteFeature } from '../lib/branch.js';
 
 export default class Merge extends Command {
   static override description =
@@ -79,6 +80,20 @@ export default class Merge extends Command {
         this.log(
           `\nAll ${result.steps.length} PRs merged successfully in dependency order.`,
         );
+
+        const cleanup = await deleteFeature({
+          workspaceDir: flags.dir,
+          featureName,
+          deleteBranches: true,
+        });
+
+        this.log(`Feature "${featureName}" cleaned up.`);
+        if (cleanup.branchesDeleted.length > 0) {
+          this.log(`Branches deleted in: ${cleanup.branchesDeleted.join(', ')}`);
+        }
+        if (cleanup.branchesSkipped.length > 0) {
+          this.warn(`Could not delete branch in: ${cleanup.branchesSkipped.join(', ')} (currently checked out)`);
+        }
       } else if (dryRun) {
         this.log(
           `\nMerge plan: ${result.steps.length} PRs would be merged in the order above.`,
