@@ -1,5 +1,6 @@
 import { Command, Flags } from '@oclif/core';
 import { merge } from '../lib/merge.js';
+import { detectFeature } from '../lib/feature-detect.js';
 
 export default class Merge extends Command {
   static override description =
@@ -13,8 +14,7 @@ export default class Merge extends Command {
 
   static override flags = {
     feature: Flags.string({
-      description: 'Feature branch name',
-      required: true,
+      description: 'Feature branch name (auto-detected from current branch if omitted)',
     }),
     method: Flags.string({
       description: 'Merge method',
@@ -41,16 +41,21 @@ export default class Merge extends Command {
       );
     }
 
+    const featureName = await detectFeature({
+      workspaceDir: flags.dir,
+      explicit: flags.feature,
+    });
+
     const dryRun = flags['dry-run'];
 
     if (dryRun) {
-      this.log('\nDry run mode — showing merge plan without executing.\n');
+      this.log('\nDry run mode \u2014 showing merge plan without executing.\n');
     }
 
     try {
       const result = await merge({
         workspaceDir: flags.dir,
-        featureName: flags.feature,
+        featureName,
         githubToken: token,
         method: flags.method as 'merge' | 'squash' | 'rebase',
         dryRun,

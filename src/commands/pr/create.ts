@@ -1,5 +1,6 @@
 import { Command, Flags } from '@oclif/core';
 import { createPRs } from '../../lib/pr.js';
+import { detectFeature } from '../../lib/feature-detect.js';
 
 export default class PRCreate extends Command {
   static override description =
@@ -12,8 +13,7 @@ export default class PRCreate extends Command {
 
   static override flags = {
     feature: Flags.string({
-      description: 'Feature branch name',
-      required: true,
+      description: 'Feature branch name (auto-detected from current branch if omitted)',
     }),
     title: Flags.string({
       description: 'PR title',
@@ -37,9 +37,14 @@ export default class PRCreate extends Command {
     const { flags } = await this.parse(PRCreate);
 
     try {
+      const featureName = await detectFeature({
+        workspaceDir: flags.dir,
+        explicit: flags.feature,
+      });
+
       const results = await createPRs({
         workspaceDir: flags.dir,
-        featureName: flags.feature,
+        featureName,
         title: flags.title,
         body: flags.body,
         draft: flags.draft,

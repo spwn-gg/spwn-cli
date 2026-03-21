@@ -5,6 +5,11 @@ export { createPRs } from './pr.js';
 export { getStatus } from './status.js';
 export { merge } from './merge.js';
 export { detectDependencies, topologicalSort } from './deps.js';
+export { detectFeature } from './feature-detect.js';
+export { listFeatures, listRepos } from './list.js';
+
+// List types
+export type { FeatureInfo, RepoInfo } from './list.js';
 
 // Types
 export type {
