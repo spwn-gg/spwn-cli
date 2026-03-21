@@ -82,7 +82,26 @@ export interface MergeStepResult {
   repoName: string;
   prNumber: number;
   status: 'merged' | 'failed' | 'skipped';
+  mergeSha?: string;
   error?: string;
+}
+
+export interface MergeHistoryEntry {
+  featureName: string;
+  mergedAt: string; // ISO 8601
+  method: 'merge' | 'squash' | 'rebase';
+  steps: Array<{
+    repoName: string;
+    repoUrl: string;
+    prNumber: number;
+    prUrl: string;
+    mergeSha: string;
+  }>;
+}
+
+export interface MergeHistory {
+  version: 1;
+  entries: MergeHistoryEntry[];
 }
 
 export interface MergeResult {
