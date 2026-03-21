@@ -1,6 +1,6 @@
 import { Command, Args, Flags } from '@oclif/core';
 import { switchFeature } from '../lib/branch.js';
-import { configExists } from '../lib/workspace.js';
+import { configExists, readConfig } from '../lib/workspace.js';
 
 export default class Switch extends Command {
   static override description =
@@ -8,13 +8,13 @@ export default class Switch extends Command {
 
   static override examples = [
     '<%= config.bin %> switch my-feature',
-    '<%= config.bin %> switch my-feature --dir /path/to/workspace',
+    '<%= config.bin %> switch',
   ];
 
   static override args = {
     feature: Args.string({
       description: 'Name of the registered feature branch',
-      required: true,
+      required: false,
     }),
   };
 
@@ -28,22 +28,38 @@ export default class Switch extends Command {
   async run(): Promise<void> {
     const { args, flags } = await this.parse(Switch);
     const workspaceDir = flags.dir;
-    const featureName = args.feature;
 
     if (!configExists(workspaceDir)) {
-      this.error(
-        `No workspace config found. Run "spwn init" first.`,
-      );
+      this.error('No workspace config found. Run "spwn init" first.');
+    }
+
+    // If no feature provided, list available features
+    if (!args.feature) {
+      const config = await readConfig(workspaceDir);
+      if (config.features.length === 0) {
+        this.log('No features registered. Run "spwn branch <name>" to register one.');
+        return;
+      }
+
+      this.log('Available features:\n');
+      for (const f of config.features) {
+        const repoCount = f.repos.length;
+        const repos = repoCount > 0 ? f.repos.join(', ') : 'none';
+        this.log(`  ${f.name}  (${repoCount} repo${repoCount !== 1 ? 's' : ''}: ${repos})`);
+      }
+
+      this.log('\nUsage: spwn switch <feature>');
+      return;
     }
 
     try {
       const result = await switchFeature({
         workspaceDir,
-        featureName,
+        featureName: args.feature,
       });
 
       for (const repoName of result.switched) {
-        this.log(`Switched "${repoName}" to branch "${featureName}".`);
+        this.log(`Switched "${repoName}" to branch "${args.feature}".`);
       }
 
       for (const { repoName, reason } of result.skipped) {
@@ -54,7 +70,7 @@ export default class Switch extends Command {
         this.warn('No repos were switched.');
       } else {
         this.log(
-          `Switched ${result.switched.length} repo(s) to "${featureName}".`,
+          `Switched ${result.switched.length} repo(s) to "${args.feature}".`,
         );
       }
     } catch (error) {
