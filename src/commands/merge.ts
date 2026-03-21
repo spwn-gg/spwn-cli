@@ -79,6 +79,7 @@ export default class Merge extends Command {
         this.log(
           `\nAll ${result.steps.length} PRs merged successfully in dependency order.`,
         );
+        this.log(`\nCleanup: run "spwn branch --delete ${featureName} --prune" to remove the feature and its branches.`);
       } else if (dryRun) {
         this.log(
           `\nMerge plan: ${result.steps.length} PRs would be merged in the order above.`,

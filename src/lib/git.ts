@@ -85,6 +85,10 @@ export function branchExists(repoPath: string, branchName: string): boolean {
   }
 }
 
+export function deleteBranch(repoPath: string, branchName: string): void {
+  gitOrThrow(repoPath, ['branch', '-D', branchName]);
+}
+
 export function getCommitsAhead(
   repoPath: string,
   baseBranch: string,
