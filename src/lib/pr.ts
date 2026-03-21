@@ -47,7 +47,7 @@ export function generatePRBody(options: GeneratePRBodyOptions): string {
     '`' + dependencyOrder.join('` -> `') + '`',
   );
   lines.push('');
-  lines.push('_Created by [spwn](https://github.com/bartam/meridian)_');
+  lines.push('_Created by [spwn](https://github.com/spwn-gg/spwn-cli)_');
 
   return lines.join('\n');
 }

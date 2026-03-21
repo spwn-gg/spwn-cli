@@ -136,37 +136,6 @@ export async function merge(options: MergeOptions): Promise<MergeResult> {
       };
     }
 
-    // Check reviews
-    if (prStatus.reviews.changesRequested > 0) {
-      steps.push({
-        repoName: repo.name,
-        prNumber: pr.number,
-        status: 'failed',
-        error: `PR has changes requested on ${repo.name}`,
-      });
-      return {
-        steps,
-        allMerged: false,
-        failedAt: repo.name,
-        guidance: `PR #${pr.number} on ${repo.name} has changes requested. Address review feedback before merging.`,
-      };
-    }
-
-    if (prStatus.reviews.approved === 0) {
-      steps.push({
-        repoName: repo.name,
-        prNumber: pr.number,
-        status: 'failed',
-        error: `PR has no approvals on ${repo.name}`,
-      });
-      return {
-        steps,
-        allMerged: false,
-        failedAt: repo.name,
-        guidance: `PR #${pr.number} on ${repo.name} has no approvals. Get at least one approval before merging.`,
-      };
-    }
-
     // Dry run: record the plan without executing
     if (dryRun) {
       steps.push({
