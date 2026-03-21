@@ -92,6 +92,11 @@ export interface MergeResult {
   guidance?: string;
 }
 
+export interface SwitchResult {
+  switched: string[];  // repo names successfully switched
+  skipped: Array<{ repoName: string; reason: string }>;
+}
+
 export interface GitInfo {
   isRepo: boolean;
   remoteUrl: string | null;

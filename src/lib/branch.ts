@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import type { FeatureBranch, CheckoutResult } from './types.js';
+import type { FeatureBranch, CheckoutResult, SwitchResult } from './types.js';
 import { readConfig, writeConfig } from './workspace.js';
 import {
   isDirty,
@@ -98,4 +98,43 @@ export async function checkout(options: {
     branchName: featureName,
     created,
   };
+}
+
+export async function switchFeature(options: {
+  workspaceDir: string;
+  featureName: string;
+}): Promise<SwitchResult> {
+  const { workspaceDir, featureName } = options;
+
+  const config = await readConfig(workspaceDir);
+
+  const feature = config.features.find((f) => f.name === featureName);
+  if (!feature) {
+    throw new Error(
+      `Feature "${featureName}" not found. Register it first with "spwn branch".`,
+    );
+  }
+
+  const switched: string[] = [];
+  const skipped: SwitchResult['skipped'] = [];
+
+  for (const repoName of feature.repos) {
+    const repo = config.repos.find((r) => r.name === repoName);
+    if (!repo) {
+      skipped.push({ repoName, reason: 'Repository not found in workspace config' });
+      continue;
+    }
+
+    const repoPath = join(workspaceDir, repo.path);
+
+    if (isDirty(repoPath)) {
+      skipped.push({ repoName, reason: 'Has uncommitted changes' });
+      continue;
+    }
+
+    checkoutBranch(repoPath, featureName);
+    switched.push(repoName);
+  }
+
+  return { switched, skipped };
 }
