@@ -1,103 +1,95 @@
-import { Command } from 'commander';
-import { apiRequest } from '../utils/api-client.js';
-import type { MergeExecutionResponse } from '@meridian/shared';
+import { Command, Flags } from '@oclif/core';
+import { merge } from '../lib/merge.js';
 
-function mergePath(workspaceId: string, intentId: string, changesetId: string): string {
-  return `/workspaces/${workspaceId}/intents/${intentId}/changesets/${changesetId}/merge`;
-}
+export default class Merge extends Command {
+  static override description =
+    'Merge feature branch PRs across repos in safe dependency order';
 
-function formatRepoStatus(r: MergeExecutionResponse['results'][0]): string {
-  if (r.rollbackStatus === 'succeeded') return 'succeeded → rolled back';
-  if (r.rollbackStatus === 'failed') return 'succeeded → rollback FAILED';
-  if (r.rollbackStatus === 'skipped') return 'succeeded → rollback skipped (merged externally)';
-  return r.status;
-}
+  static override examples = [
+    '<%= config.bin %> merge --feature feat-1',
+    '<%= config.bin %> merge --feature feat-1 --method squash',
+    '<%= config.bin %> merge --feature feat-1 --dry-run',
+  ];
 
-function printExecution(exec: MergeExecutionResponse): void {
-  console.log(`\nMerge Execution: ${exec.id}`);
-  console.log(`  Changeset: ${exec.changesetId}`);
-  console.log(`  Status:    ${exec.status}`);
-  console.log(`  Created:   ${exec.createdAt}`);
-  if (exec.completedAt) {
-    console.log(`  Completed: ${exec.completedAt}`);
-  }
+  static override flags = {
+    feature: Flags.string({
+      description: 'Feature branch name',
+      required: true,
+    }),
+    method: Flags.string({
+      description: 'Merge method',
+      options: ['merge', 'squash', 'rebase'],
+      default: 'merge',
+    }),
+    'dry-run': Flags.boolean({
+      description: 'Show merge plan without executing',
+      default: false,
+    }),
+    dir: Flags.string({
+      description: 'Workspace root directory',
+      default: '.',
+    }),
+  };
 
-  if (exec.results.length > 0) {
-    console.log(`\n  Results (${exec.results.length}):`);
-    for (const r of exec.results) {
-      const statusIcon = r.status === 'succeeded'
-        ? (r.rollbackStatus === 'succeeded' ? '↩' : r.rollbackStatus === 'failed' ? '⚠' : '✓')
-        : r.status === 'failed' ? '✗' : '…';
-      console.log(`    ${statusIcon} ${r.repoUrl}`);
-      console.log(`      Status: ${formatRepoStatus(r)}`);
-      if (r.prUrl) {
-        const prSuffix = r.rollbackStatus === 'succeeded' ? ' (closed)' :
-                         r.rollbackStatus === 'failed' ? ' (NEEDS MANUAL CLEANUP)' : '';
-        console.log(`      PR:     ${r.prUrl}${prSuffix}`);
+  async run(): Promise<void> {
+    const { flags } = await this.parse(Merge);
+
+    const token = process.env.GITHUB_TOKEN;
+    if (!token) {
+      this.error(
+        'GITHUB_TOKEN environment variable is required. Set it with: export GITHUB_TOKEN=<your-token>',
+      );
+    }
+
+    const dryRun = flags['dry-run'];
+
+    if (dryRun) {
+      this.log('\nDry run mode — showing merge plan without executing.\n');
+    }
+
+    try {
+      const result = await merge({
+        workspaceDir: flags.dir,
+        featureName: flags.feature,
+        githubToken: token,
+        method: flags.method as 'merge' | 'squash' | 'rebase',
+        dryRun,
+      });
+
+      for (const step of result.steps) {
+        const icon =
+          step.status === 'merged'
+            ? '[MERGED]'
+            : step.status === 'skipped'
+              ? '[PLAN]'
+              : '[FAILED]';
+        const prInfo = step.prNumber > 0 ? ` (PR #${step.prNumber})` : '';
+        this.log(`  ${icon} ${step.repoName}${prInfo}`);
+        if (step.error) {
+          this.log(`         ${step.error}`);
+        }
       }
-      if (r.branchName) {
-        const branchSuffix = r.rollbackStatus === 'succeeded' ? ' (deleted)' :
-                             r.rollbackStatus === 'failed' ? ' (NEEDS MANUAL CLEANUP)' : '';
-        console.log(`      Branch: ${r.branchName}${branchSuffix}`);
+
+      if (result.allMerged) {
+        this.log(
+          `\nAll ${result.steps.length} PRs merged successfully in dependency order.`,
+        );
+      } else if (dryRun) {
+        this.log(
+          `\nMerge plan: ${result.steps.length} PRs would be merged in the order above.`,
+        );
+      } else if (result.guidance) {
+        this.log(`\n${result.guidance}`);
       }
-      if (r.errorMessage) {
-        console.log(`      Error:  ${r.errorMessage}`);
+
+      if (result.failedAt) {
+        this.exit(1);
       }
-      if (r.rollbackErrorMessage) {
-        console.log(`      Rollback error: ${r.rollbackErrorMessage}`);
+    } catch (error) {
+      if (error instanceof Error) {
+        this.error(error.message);
       }
-      if (r.retryCount > 0) {
-        console.log(`      Retries: ${r.retryCount}`);
-      }
+      throw error;
     }
   }
-
-  // Summary messages
-  if (exec.status === 'rolled_back') {
-    console.log('\n  Rollback completed. Changeset remains approved — fix the issue and retry.');
-  } else if (exec.status === 'rollback_partial_failure') {
-    console.log('\n  ⚠ Manual cleanup required for repos where rollback failed.');
-  }
-}
-
-export function registerMergeCommands(program: Command): void {
-  const merge = program.command('merge').description('Manage merge executions');
-
-  // trigger
-  merge
-    .command('trigger <workspaceId> <intentId> <changesetId>')
-    .description('Trigger merge for an approved changeset')
-    .action(async (workspaceId: string, intentId: string, changesetId: string) => {
-      const { data } = await apiRequest(
-        'POST',
-        mergePath(workspaceId, intentId, changesetId),
-      );
-      console.log('Merge triggered.');
-      printExecution(data as MergeExecutionResponse);
-    });
-
-  // status
-  merge
-    .command('status <workspaceId> <intentId> <changesetId>')
-    .description('Check merge execution status')
-    .action(async (workspaceId: string, intentId: string, changesetId: string) => {
-      const { data } = await apiRequest(
-        'GET',
-        mergePath(workspaceId, intentId, changesetId),
-      );
-      printExecution(data as MergeExecutionResponse);
-    });
-
-  // retry
-  merge
-    .command('retry <workspaceId> <intentId> <changesetId>')
-    .description('Retry failed repos in a merge execution')
-    .action(async (workspaceId: string, intentId: string, changesetId: string) => {
-      const { data } = await apiRequest(
-        'POST',
-        `${mergePath(workspaceId, intentId, changesetId)}/retry`,
-      );
-      console.log('Retry triggered.');
-      printExecution(data as MergeExecutionResponse);
-    });
 }
