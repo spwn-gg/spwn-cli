@@ -3,7 +3,6 @@ import type { GitHubAdapter } from '../../src/lib/github.js';
 import type {
   WorkspaceConfig,
   PRStatus,
-  MergeResult,
 } from '../../src/lib/types.js';
 
 // Mock workspace module
@@ -274,7 +273,7 @@ describe('merge', () => {
       return { url: `https://github.com/owner/${repo}/pull/${prNumbers[repo]}`, number: prNumbers[repo] };
     });
 
-    vi.mocked(mockAdapter.getPRStatus).mockImplementation(async ({ repo, prNumber }) => {
+    vi.mocked(mockAdapter.getPRStatus).mockImplementation(async ({ prNumber }) => {
       return makePRStatus({ number: prNumber });
     });
 

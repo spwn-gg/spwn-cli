@@ -1,16 +1,26 @@
-FROM node:22-slim
-
-RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
-
-WORKDIR /shared
-COPY meridian-shared/package*.json ./
-COPY meridian-shared/ ./
-RUN npm ci && npm run build
+FROM oven/bun:1 AS builder
 
 WORKDIR /app
-COPY meridian-cli/package*.json ./
-RUN npm ci
-COPY meridian-cli/ .
-RUN npm run build
 
-ENTRYPOINT ["node", "dist/index.js"]
+# Copy shared package first (dependency)
+COPY ../spwn-shared /shared
+WORKDIR /shared
+RUN bun install && bun run build
+
+# Copy CLI package
+WORKDIR /app
+COPY package.json package-lock.json* ./
+RUN bun install
+
+COPY . .
+RUN bun run build
+
+FROM oven/bun:1-slim
+
+WORKDIR /app
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/bin ./bin
+
+ENTRYPOINT ["bun", "run", "bin/run.js"]

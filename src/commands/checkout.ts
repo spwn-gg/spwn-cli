@@ -7,15 +7,11 @@ export default class Checkout extends Command {
     'Create and switch to a feature branch in a specific repository';
 
   static override examples = [
-    '<%= config.bin %> checkout . my-feature --repo backend',
-    '<%= config.bin %> checkout /path/to/workspace my-feature --repo frontend --force',
+    '<%= config.bin %> checkout my-feature --repo backend',
+    '<%= config.bin %> checkout my-feature --repo frontend --force',
   ];
 
   static override args = {
-    workspace: Args.string({
-      description: 'Path to the workspace root',
-      required: true,
-    }),
     feature: Args.string({
       description: 'Name of the registered feature branch',
       required: true,
@@ -31,18 +27,22 @@ export default class Checkout extends Command {
       description: 'Force checkout even if the repository has uncommitted changes',
       default: false,
     }),
+    dir: Flags.string({
+      description: 'Workspace root directory',
+      default: '.',
+    }),
   };
 
   async run(): Promise<void> {
     const { args, flags } = await this.parse(Checkout);
-    const workspaceDir = args['workspace'];
-    const featureName = args['feature'];
-    const repoName = flags['repo'];
-    const force = flags['force'];
+    const workspaceDir = flags.dir;
+    const featureName = args.feature;
+    const repoName = flags.repo;
+    const force = flags.force;
 
     if (!configExists(workspaceDir)) {
       this.error(
-        `No workspace config found at ${workspaceDir}. Run "spwn init" first.`,
+        `No workspace config found. Run "spwn init" first.`,
       );
     }
 

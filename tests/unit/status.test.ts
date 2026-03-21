@@ -4,7 +4,6 @@ import type {
   WorkspaceConfig,
   RepoConfig,
   DependencyEdge,
-  FeatureBranch,
   PRStatus,
 } from '../../src/lib/types.js';
 
