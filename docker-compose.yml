@@ -1,0 +1,6 @@
+services:
+  cli:
+    build:
+      context: ..
+      dockerfile: meridian-cli/Dockerfile
+    env_file: .env
