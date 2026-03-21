@@ -1,8 +1,9 @@
-import type { MergeResult, MergeStepResult } from './types.js';
+import type { MergeResult, MergeStepResult, MergeHistoryEntry } from './types.js';
 import { readConfig } from './workspace.js';
 import { createGitHubAdapter, parseRepoUrl } from './github.js';
 import type { GitHubAdapter } from './github.js';
 import { topologicalSort } from './deps.js';
+import { appendMergeEntry } from './history.js';
 
 export interface MergeOptions {
   workspaceDir: string;
@@ -160,6 +161,7 @@ export async function merge(options: MergeOptions): Promise<MergeResult> {
           repoName: repo.name,
           prNumber: pr.number,
           status: 'merged',
+          mergeSha: mergeResult.sha,
         });
       } else {
         steps.push({
@@ -193,6 +195,29 @@ export async function merge(options: MergeOptions): Promise<MergeResult> {
   }
 
   const allMerged = !dryRun && steps.every((s) => s.status === 'merged');
+
+  // Record merge history
+  if (allMerged) {
+    const historyEntry: MergeHistoryEntry = {
+      featureName,
+      mergedAt: new Date().toISOString(),
+      method,
+      steps: steps
+        .filter((s) => s.status === 'merged' && s.mergeSha)
+        .map((s) => {
+          const repo = orderedRepos.find((r) => r.name === s.repoName)!;
+          const { owner, repo: repoName } = parseRepoUrl(repo.url);
+          return {
+            repoName: s.repoName,
+            repoUrl: repo.url,
+            prNumber: s.prNumber,
+            prUrl: `https://github.com/${owner}/${repoName}/pull/${s.prNumber}`,
+            mergeSha: s.mergeSha!,
+          };
+        }),
+    };
+    appendMergeEntry(workspaceDir, historyEntry);
+  }
 
   return {
     steps,
