@@ -34,10 +34,10 @@ export default class Merge extends Command {
   async run(): Promise<void> {
     const { flags } = await this.parse(Merge);
 
-    const token = process.env.GITHUB_TOKEN;
+    const token = process.env.GH_TOKEN || process.env.GITHUB_TOKEN;
     if (!token) {
       this.error(
-        'GITHUB_TOKEN environment variable is required. Set it with: export GITHUB_TOKEN=<your-token>',
+        'GitHub token not found. Set GH_TOKEN or GITHUB_TOKEN environment variable.',
       );
     }
 

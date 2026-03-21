@@ -34,7 +34,7 @@ export async function getStatus(options: {
   );
 
   // Create GitHub adapter
-  const token = options.githubToken ?? process.env.GITHUB_TOKEN ?? '';
+  const token = options.githubToken ?? process.env.GH_TOKEN ?? process.env.GITHUB_TOKEN ?? '';
   const github: GitHubAdapter = createGitHubAdapter(token);
 
   // Build a map to track PR state per repo for blocking computation

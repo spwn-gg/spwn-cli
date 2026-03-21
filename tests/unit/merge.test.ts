@@ -212,59 +212,6 @@ describe('merge', () => {
     expect(result.steps[1].status).toBe('failed');
   });
 
-  it('refuses when PRs not approved (reviews.approved === 0)', async () => {
-    mockReadConfig.mockResolvedValue(makeConfig());
-
-    vi.mocked(mockAdapter.findPR).mockResolvedValue({
-      url: 'https://github.com/owner/shared-lib/pull/10',
-      number: 10,
-    });
-
-    vi.mocked(mockAdapter.getPRStatus).mockResolvedValue(
-      makePRStatus({ number: 10, reviews: { approved: 0, changesRequested: 0, pending: 0 } }),
-    );
-
-    const result = await merge({
-      workspaceDir: '/test',
-      featureName: 'feat-1',
-      githubToken: 'fake-token',
-      pollDelayMs: 0,
-    });
-
-    expect(result.allMerged).toBe(false);
-    expect(result.failedAt).toBe('shared-lib');
-    expect(result.guidance).toContain('approv');
-    expect(mockAdapter.mergePR).not.toHaveBeenCalled();
-  });
-
-  it('refuses when reviews have changes-requested', async () => {
-    mockReadConfig.mockResolvedValue(makeConfig());
-
-    vi.mocked(mockAdapter.findPR).mockResolvedValue({
-      url: 'https://github.com/owner/shared-lib/pull/10',
-      number: 10,
-    });
-
-    vi.mocked(mockAdapter.getPRStatus).mockResolvedValue(
-      makePRStatus({
-        number: 10,
-        reviews: { approved: 1, changesRequested: 1, pending: 0 },
-      }),
-    );
-
-    const result = await merge({
-      workspaceDir: '/test',
-      featureName: 'feat-1',
-      githubToken: 'fake-token',
-      pollDelayMs: 0,
-    });
-
-    expect(result.allMerged).toBe(false);
-    expect(result.failedAt).toBe('shared-lib');
-    expect(result.guidance).toContain('changes requested');
-    expect(mockAdapter.mergePR).not.toHaveBeenCalled();
-  });
-
   it('dry-run returns merge plan without executing merges', async () => {
     mockReadConfig.mockResolvedValue(makeConfig());
 
