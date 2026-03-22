@@ -194,7 +194,7 @@ export async function merge(options: MergeOptions): Promise<MergeResult> {
     }
   }
 
-  const allMerged = !dryRun && steps.every((s) => s.status === 'merged');
+  const allMerged = !dryRun && steps.every((s) => s.status === 'merged' || s.status === 'skipped');
 
   // Record merge history
   if (allMerged) {
